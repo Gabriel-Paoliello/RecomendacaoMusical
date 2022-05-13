@@ -3,22 +3,18 @@ import numpy as np
 from PIL import ImageGrab
 from deepface import DeepFace
 
-face_cascade = cv2.CascadeClassifier('haarcascade_frontalface_default.xml')
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades +'haarcascade_frontalface_default.xml')
 
-eye_cascade = cv2.CascadeClassifier('haarcascade_eye.xml')
+eye_cascade = cv2.CascadeClassifier(cv2.data.haarcascades +'haarcascade_eye.xml')
 
-a=0
 
 while True:
-    a= a+1
 
-    img = ImageGrab.grab(bbox=(0, 0, 1366, 768))
+    img = ImageGrab.grab(bbox=(0, 0, 1920, 1080))
     tela = np.array(img)
 
     frame = tela
-    a=0
-    #print(frame)
-
+    
     gray = cv2.cvtColor(tela, cv2.COLOR_BGR2GRAY)
 
     faces = face_cascade.detectMultiScale(gray,1.3,5)
@@ -37,7 +33,7 @@ while True:
     #    predictions = DeepFace.analyze(frame)
     #    print("bia", predictions)
     #except:
-    #    print("bia error")
+    #    print("bia error") 
     key=cv2.waitKey(1)
 
     if key == ord('q'):
