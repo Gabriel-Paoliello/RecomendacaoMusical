@@ -39,6 +39,6 @@ try:
     print(predictions['dominant_emotion'])
     print('\n', predictions)
 except:
-    print("bia error") 
+    print("Error") 
 
 cv2.destroyAllWindows()

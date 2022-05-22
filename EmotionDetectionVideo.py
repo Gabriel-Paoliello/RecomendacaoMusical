@@ -19,8 +19,14 @@ while True:
 
     faces = face_cascade.detectMultiScale(gray,1.3,5)
 
+    try:
+        predictions = DeepFace.analyze(frame)
+        print("bia", predictions)
+    except:
+        print("bia error") 
+
     for (x,y,w,h) in faces:
-            cv2.putText(frame,'Estou feliz',(x,y),cv2.FONT_HERSHEY_SIMPLEX,1,(255,0,0),2,cv2.LINE_AA)
+            cv2.putText(frame,predictions['dominant_emotion'],(x,y),cv2.FONT_HERSHEY_SIMPLEX,1,(0,255,255),2,cv2.LINE_AA)
             cv2.rectangle(frame,(x,y),(x+w,y+h),(255,0,0),2)
             roi_gray = gray[y:y+h, x:x+w]
             roi_color = frame[y:y+h, x:x+w]
@@ -29,11 +35,7 @@ while True:
                 cv2.rectangle(roi_color,(ex,ey),(ex+ew,ey+eh),(0,255,0),2)
 
     cv2.imshow('Capturando',frame)
-    #try:
-    #    predictions = DeepFace.analyze(frame)
-    #    print("bia", predictions)
-    #except:
-    #    print("bia error") 
+    
     key=cv2.waitKey(1)
 
     if key == ord('q'):
