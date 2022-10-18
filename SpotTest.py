@@ -8,6 +8,11 @@ track= 'Lonely World'
 
 track_id = sp.search(q=track, type='track',limit=1)
 
-print(track_id['tracks']['items'][0]['id'])
-#print(track_id)
+print(sp.track(track_id=track_id['tracks']['items'][0]['id']))
 
+artist_info = sp.artist(track_id['tracks']['items'][0]['artists'][0]['uri'])
+
+print(track_id['tracks']['items'][0]['id'])
+print(track_id['tracks']['items'][0]['name'])
+print(track_id['tracks']['items'][0]['artists'][0]["name"])
+print(artist_info["genres"])

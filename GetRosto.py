@@ -70,3 +70,4 @@ if pred != 0:
 
 df = new_data
 print(df)
+df.to_csv("rosto.csv")
