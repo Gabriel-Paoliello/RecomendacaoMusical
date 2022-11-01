@@ -3,7 +3,6 @@ import numpy as np
 import os
 from deepface import DeepFace
 import pandas as pd
-from asyncio.windows_events import NULL
 from genericpath import exists
 from pandas import DataFrame
 from sklearn.neighbors import NearestNeighbors
@@ -141,8 +140,8 @@ def main():
     img1 = 'img_database_r\Homem\Pessoa 04\Bravo_r.png'
 
     #Imagem ou Câmera?
-    #pred = get_face_image(GetRosto())
-    pred = get_face_image(img1)
+    pred = get_face_image(GetRosto())
+    #pred = get_face_image(img1)
 
     if pred != 0:
         new_data = get_face_param(pred)
