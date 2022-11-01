@@ -7,9 +7,11 @@ from genericpath import exists
 from pandas import DataFrame
 from sklearn.neighbors import NearestNeighbors
 import math
-
+import requests
 import webbrowser
-
+import spotipy
+from spotipy.oauth2 import SpotifyClientCredentials
+import json
 
 
 def GetRosto():
@@ -88,7 +90,7 @@ def intervaloConfianca(df):
         df_int_conf[df.columns[x]] = [column.mean()-intervalo, column.mean()+intervalo]
     return df_int_conf
 
-def feedback(music_param, face_param):
+def feedback(new_data_param):
     choice = input('Você gostou desta recomendação musical? [S/N]: ')
     choice = choice.lower()
 
@@ -100,13 +102,21 @@ def feedback(music_param, face_param):
 
     if(choice == 's'):
         # guarda dados
-        df = face_param
-        df = df.join(music_param)
-        df.to_csv('database\databaseTest.csv', mode='a', header=False)
+        new_data_param.to_csv('database\databaseTest.csv', mode='a', header=False)
         return True
     else:
         #faz algo ainda
         return False
+
+def listToString(list):
+    finalString=""
+    for x in range(len(list)):
+        if(x == len(list)-1):
+            finalString=finalString+list[x]
+            return finalString
+        finalString=list[x]+","+finalString
+    return finalString
+
 
 def play_music(musicId):
     
@@ -114,7 +124,9 @@ def play_music(musicId):
     
     html_template = """
     <html>
-    <head></head>
+    <head>
+    <title>Recomendação Musical</title>
+    </head>
     <body>
     <iframe style="border-radius:12px" src="https://open.spotify.com/embed/track/{id}?utm_source=generator" width="100%" height="352" frameBorder="0" allowfullscreen="" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy"></iframe>
     
@@ -129,10 +141,51 @@ def play_music(musicId):
     filename = 'file:///'+os.getcwd()+'/' + 'Temp\index.html'
     webbrowser.open_new_tab(filename)
 
+def post_music_request(intervalo_params, music_ids):
+
+    int_min = intervalo_params.loc[0]
+    int_max = intervalo_params.loc[1]
+
+    url = 'http://localhost:5000/recommend/api/v1/get-recommendation'
+    myobj = {
+        "limit": "2",
+        #"market":"ES",
+        #"seed_artists": artist_ids,
+        #"seed_genres": artist_genres,
+        "seed_tracks": music_ids,
+        #"min_danceability": str(int_min['danceability']),
+        #"max_danceability": str(int_max['danceability']),
+        #"min_energy": str(int_min['energy']),
+        #"max_energy": str(int_max['energy']),
+        #"min_acousticness": str(int_min['acousticness']),
+        #"max_acousticness": str(int_max['acousticness']),
+        #"min_instrumentalness": str(int_min['instrumentalness']),
+        #"max_instrumentalness": str(int_max['instrumentalness']),
+        #"min_loudness": str(int_min['loudness']),
+        #"max_loudness": str(int_max['loudness']),
+        #"min_speechiness": str(int_min['speechiness']),
+        #"max_speechiness": str(int_max['speechiness']),
+        #"min_liveness": str(int_min['liveness']),
+        #"max_liveness": str(int_max['liveness']),
+        #"max_valence": str(int_max['valence']),
+        #"min_valence": str(int_min['valence']),
+        #"max_tempo": str(int_max['tempo']),
+        #"min_tempo": str(int_min['tempo'])
+    }
+
+    print(myobj)
+
+    x = requests.post(url = url, json = myobj)
+    return x
+
 def main():
 
-    database = pd.read_csv("database/database2.csv")
-    print(database)
+    audio_features = ["danceability","energy","key","loudness","mode","speechiness","acousticness","instrumentalness","liveness","valence","tempo","type","id","uri","track_href","analysis_url","duration_ms","time_signature"]
+
+    #Pegar Audio_features
+    sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id="094d8890d57f4293b5e14500a347e8f0",client_secret="97f0921b9d2b4551b700ec347b56b301"))
+
+    database = pd.read_csv("database/databaseTest.csv")
 
     #Treinamento
     knn = training(database)
@@ -148,7 +201,6 @@ def main():
 
     rosto = new_data[['age', 'gender', 'angry', 'disgust', 'fear', 'happy', 'sad', 'surprise', 'neutral']]
     rosto['gender'] = rosto['gender'].replace('Man',0).replace('Woman',1)
-    print(rosto)
 
     item_selected = rosto.iloc[[0]]
     item_selected = item_selected[rosto.columns] 
@@ -163,51 +215,42 @@ def main():
     neighborsMusics = pd.DataFrame()
 
     for x in neighbors:
-        print(database.iloc[[x]][['danceability', 'energy', 'key', 'loudness', 'mode', 'speechiness',
-        'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo','duration_ms']])
-        neighborsMusics = neighborsMusics.append(database.iloc[[x]][['danceability', 'energy', 'key', 'loudness', 'mode', 'speechiness',
-        'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo','duration_ms']])
+        print(database.iloc[[x]][['danceability', 'energy', 'loudness', 'speechiness', 'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo']])
+        neighborsMusics = neighborsMusics.append(database.iloc[[x]][['danceability', 'energy', 'loudness', 'speechiness','acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo']])
 
     intervalo_params = intervaloConfianca(neighborsMusics)
 
-    music_names = []
-    artist_names = []
-    artist_genres = []
+    music_ids = []
     for y in neighbors:
-        music_names.append(database.iloc[y]['music_name'])
-        artist_names.append(database.iloc[y]['artist_name'])
-        res = (database.iloc[y]['artist_genres']).strip('][').split(', ')
-        for item in res:
-            if(not(item.replace("'",'') in artist_genres)):
-                artist_genres.append(item.replace("'",''))
-        #artist_genres = [*artist_genres , *(database.iloc[y]['artist_genres'])]
-        #print(artist_genres)
+        music_ids.append(database.iloc[y]['id'])
+        
+    str_music_ids = listToString(music_ids)
 
-    print(intervalo_params)
-    print(music_names)
-    print(artist_names)
-    print(artist_genres)
+    #print(intervalo_params)
+    #print(str_music_ids)
+    #print(str_artist_ids)
+    #print(str_artist_genres)
 
     #Spotify WebAPI
-
-    musicaRecomendada = neighborsMusics
-
-
-    musicaRecomendada = neighborsMusics.mean()[['danceability', 'energy', 'key', 'loudness', 'mode', 'speechiness',
-        'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo']]
-
-    musicaRecomendada[['key']] = musicaRecomendada[['key']].values.round()
-    musicaRecomendada[['mode']] = musicaRecomendada[['mode']].values.round()
-    musicaRecomendada['duration_ms'] = 210000
-
-    musicaRecomendada = musicaRecomendada.to_frame().T
-
-    print(musicaRecomendada)
+    musicaRecomendadas = post_music_request(intervalo_params, str_music_ids)
+    
+    idMusica = musicaRecomendadas.json()[0]["id"]
 
     #Recebe musicId
-    play_music("2hl6q70unbviGo3g1R7uFx")
+    play_music(idMusica)
 
-    feedback(musicaRecomendada, new_data)
+    novo_dado = rosto
+
+    for data in audio_features:
+        novo_dado[data] = sp.audio_features("spotify:track:" + idMusica)[0][data]
+
+    novo_dado['gender'] = novo_dado['gender'].replace(0,'Man').replace(1,'Woman')
+
+    feedback(novo_dado)
 
 
-main()
+while(True):
+    if(input("Podemos iniciar? [S/N]: ").lower() == 's'):
+        main()
+    else:
+        break

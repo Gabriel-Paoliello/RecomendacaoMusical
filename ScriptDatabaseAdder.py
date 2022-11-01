@@ -8,13 +8,13 @@ sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id="094d8890d5
                                                            client_secret="97f0921b9d2b4551b700ec347b56b301"))
 
 
-
 def main():
 
     database = pd.read_csv("database\database.csv")
 
     database['music_name'] = None
     database['artist_name'] = None
+    database['artist_id'] = None
     database['artist_genres'] = None
 
     for x in range(len(database)) :
@@ -24,10 +24,11 @@ def main():
         
         database['music_name'].iloc[[x]] = track['name']
         database['artist_name'].iloc[[x]] = track['album']['artists'][0]['name']
+        database['artist_id'].iloc[[x]] = track['album']['artists'][0]['id']
         database['artist_genres'].iloc[[x]] = [artist_info['genres']]
         
     print(database)
-    database.to_csv('database\database2.csv', mode='w', header=False)
+    database.to_csv('database\database3.csv', mode='w', header=False)
 
 
 main()
