@@ -94,7 +94,7 @@ def intervaloConfianca(df):
         desvio=column.std(axis=None)
         err=desvio/math.sqrt(len(column))
         intervalo=err*1.96
-        #print(df.columns[x],"\nmin",column.mean()-intervalo,"max",column.mean()+intervalo)
+        print(df.columns[x],"\nmin",column.mean()-intervalo,"max",column.mean()+intervalo)
         df_int_conf[df.columns[x]] = [column.mean()-intervalo, column.mean()+intervalo]
     return df_int_conf
 
