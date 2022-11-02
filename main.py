@@ -111,7 +111,7 @@ def feedback(new_data_param):
 
     if(choice == 's'):
         # guarda dados
-        new_data_param.to_csv('database/atabase.csv', mode='a', header=False)
+        new_data_param.to_csv('database/database.csv', mode='a', header=False)
         return True
     else:
         new_data_param.to_csv('database/bad_recomendation.csv', mode='a', header=False)
@@ -129,7 +129,7 @@ def listToString(list):
 #Toca preview da música recomendada
 def play_music(musicId):
     
-    f = open('Temp\index.html', 'w')
+    f = open('Temp/index.html', 'w')
     
     html_template = """
     <html>
@@ -216,6 +216,7 @@ def main():
         return 
     
     novo_dado = novo_rosto[face_features]
+    print("Emocao:",novo_dado)
     novo_dado['gender'] = novo_dado['gender'].replace('Man',0).replace('Woman',1)
 
     item_selecionado = novo_dado.iloc[[0]]
