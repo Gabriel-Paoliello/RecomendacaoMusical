@@ -13,8 +13,8 @@ import spotipy
 from spotipy.oauth2 import SpotifyClientCredentials
 import json
 
-
-def GetRosto():
+#Captura rosto pela câmera
+def cam_capture_face():
     backends = ['opencv', 'ssd', 'dlib', 'mtcnn', 'retinaface', 'mediapipe']
     vid = cv2.VideoCapture(0)
     while True:
@@ -46,6 +46,7 @@ def GetRosto():
     cv2.destroyAllWindows()
     return fname
 
+#Retorna parâmetros faciais tratados
 def get_face_param(img_param):
     df = pd.DataFrame(columns=list(img_param.keys()), data=[list(img_param.values())])
     for emotion in img_param['emotion']:
@@ -53,7 +54,8 @@ def get_face_param(img_param):
     df = df.drop(columns=['emotion','region', 'race'])
     return df
 
-def get_face_image(image_path):
+#Reconhece rosto e retorna parâmetros brutos
+def get_face_pred(image_path):
     fname = image_path
 
     try:
@@ -66,6 +68,11 @@ def get_face_image(image_path):
             return 0
     return predictions
 
+#Treinamento do modelo KNN
+
+
+
+
 def training(database):
 
     df_train = database[['age', 'gender', 'angry', 'disgust', 'fear', 'happy', 'sad', 'surprise', 'neutral']]
@@ -77,6 +84,7 @@ def training(database):
     knn.fit(X)
     return knn
 
+#Calculo de intervalo de confiança dos vizinhos mais próximos
 def intervaloConfianca(df):
 
     df_int_conf = pd.DataFrame()
@@ -90,6 +98,7 @@ def intervaloConfianca(df):
         df_int_conf[df.columns[x]] = [column.mean()-intervalo, column.mean()+intervalo]
     return df_int_conf
 
+#Recolhe feedback do usuário e adiciona valores às bases de dados
 def feedback(new_data_param):
     choice = input('Você gostou desta recomendação musical? [S/N]: ')
     choice = choice.lower()
@@ -102,10 +111,10 @@ def feedback(new_data_param):
 
     if(choice == 's'):
         # guarda dados
-        new_data_param.to_csv('database\databaseTest.csv', mode='a', header=False)
+        new_data_param.to_csv('database/atabase.csv', mode='a', header=False)
         return True
     else:
-        #faz algo ainda
+        new_data_param.to_csv('database/bad_recomendation.csv', mode='a', header=False)
         return False
 
 def listToString(list):
@@ -117,7 +126,7 @@ def listToString(list):
         finalString=list[x]+","+finalString
     return finalString
 
-
+#Toca preview da música recomendada
 def play_music(musicId):
     
     f = open('Temp\index.html', 'w')
@@ -138,15 +147,19 @@ def play_music(musicId):
     
     f.close()
     
-    filename = 'file:///'+os.getcwd()+'/' + 'Temp\index.html'
-    webbrowser.open_new_tab(filename)
+    filename = 'file:'+os.getcwd()+'/' + 'Temp/index.html'
+    print(filename)
+    webbrowser.open(url = filename, new = 1)
+    #webbrowser.get('chrome').open_new_tab(filename)
+    #webbrowser.open_new_tab(filename)
 
+#Envia request para docker e retorna resposta da WebAPI do Spotify
 def post_music_request(intervalo_params, music_ids):
 
     int_min = intervalo_params.loc[0]
     int_max = intervalo_params.loc[1]
 
-    url = 'http://localhost:5000/recommend/api/v1/get-recommendation'
+    url = 'http://localhost:8000/recommend/api/v1/get-recommendation'
     myobj = {
         "limit": "2",
         #"market":"ES",
@@ -176,73 +189,66 @@ def post_music_request(intervalo_params, music_ids):
     print(myobj)
 
     x = requests.post(url = url, json = myobj)
+    print(x)
     return x
 
 def main():
 
+    spotify_cred_f = open('SpotifyCred.txt', 'r')
+    spotify_cred = spotify_cred_f.read().splitlines()
+
+    #Criando objeto Spotipy e aplicando credenciais
+    sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id=spotify_cred[0],client_secret=spotify_cred[1]))
+
     audio_features = ["danceability","energy","key","loudness","mode","speechiness","acousticness","instrumentalness","liveness","valence","tempo","type","id","uri","track_href","analysis_url","duration_ms","time_signature"]
-
-    #Pegar Audio_features
-    sp = spotipy.Spotify(auth_manager=SpotifyClientCredentials(client_id="094d8890d57f4293b5e14500a347e8f0",client_secret="97f0921b9d2b4551b700ec347b56b301"))
-
-    database = pd.read_csv("database/databaseTest.csv")
+    face_features = ['age', 'gender', 'angry', 'disgust', 'fear', 'happy', 'sad', 'surprise', 'neutral']
+    database = pd.read_csv("database/database.csv")
 
     #Treinamento
     knn = training(database)
 
-    img1 = 'img_database_r\Homem\Pessoa 04\Bravo_r.png'
-
-    #Imagem ou Câmera?
-    pred = get_face_image(GetRosto())
-    #pred = get_face_image(img1)
+    #Executando previsões dos parâmetros faciais
+    pred = get_face_pred(cam_capture_face())
 
     if pred != 0:
-        new_data = get_face_param(pred)
-
-    rosto = new_data[['age', 'gender', 'angry', 'disgust', 'fear', 'happy', 'sad', 'surprise', 'neutral']]
-    rosto['gender'] = rosto['gender'].replace('Man',0).replace('Woman',1)
-
-    item_selected = rosto.iloc[[0]]
-    item_selected = item_selected[rosto.columns] 
-
-    # Determine the neighbors
-    d, neighbors = knn.kneighbors(item_selected.values.reshape(1, -1))
-    neighbors = neighbors[0][1::] 
-    d = d[0][1::] 
-
-    print(neighbors)
+        novo_rosto = get_face_param(pred)
+    else:
+        return 
     
-    neighborsMusics = pd.DataFrame()
+    novo_dado = novo_rosto[face_features]
+    novo_dado['gender'] = novo_dado['gender'].replace('Man',0).replace('Woman',1)
 
-    for x in neighbors:
-        print(database.iloc[[x]][['danceability', 'energy', 'loudness', 'speechiness', 'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo']])
-        neighborsMusics = neighborsMusics.append(database.iloc[[x]][['danceability', 'energy', 'loudness', 'speechiness','acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo']])
+    item_selecionado = novo_dado.iloc[[0]]
+    item_selecionado = item_selecionado[novo_dado.columns] 
 
-    intervalo_params = intervaloConfianca(neighborsMusics)
+    # Determinando vizinhos mais próximos
+    d, vizinhos = knn.kneighbors(item_selecionado.values.reshape(1, -1))
+    vizinhos = vizinhos[0][1::] 
+    d = d[0][1::] 
+    
+    musicas_vizinhas = pd.DataFrame()
+
+    for x in vizinhos:
+        musicas_vizinhas = musicas_vizinhas.append(database.iloc[[x]][['danceability', 'energy', 'loudness', 'speechiness','acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo']])
+
+    intervalo_params = intervaloConfianca(musicas_vizinhas)
 
     music_ids = []
-    for y in neighbors:
+    for y in vizinhos:
         music_ids.append(database.iloc[y]['id'])
         
     str_music_ids = listToString(music_ids)
 
-    #print(intervalo_params)
-    #print(str_music_ids)
-    #print(str_artist_ids)
-    #print(str_artist_genres)
+    #Comunicação com WebAPI do Spotify
+    musica_recomendada = post_music_request(intervalo_params, str_music_ids)
 
-    #Spotify WebAPI
-    musicaRecomendadas = post_music_request(intervalo_params, str_music_ids)
-    
-    idMusica = musicaRecomendadas.json()[0]["id"]
+    musica_rec_id = musica_recomendada.json()[0]["id"]
 
-    #Recebe musicId
-    play_music(idMusica)
+    #Abre reprodução de preview do Spotify
+    play_music(musica_rec_id)
 
-    novo_dado = rosto
-
-    for data in audio_features:
-        novo_dado[data] = sp.audio_features("spotify:track:" + idMusica)[0][data]
+    for feature in audio_features:
+        novo_dado[feature] = sp.audio_features("spotify:track:" + musica_rec_id)[0][feature]
 
     novo_dado['gender'] = novo_dado['gender'].replace(0,'Man').replace(1,'Woman')
 
